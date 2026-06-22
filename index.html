@@ -185,7 +185,7 @@
       height: 60px;
       display: flex;
       align-items: center;
-      gap: 2px;
+      gap: 8px;
       position: sticky;
       top: 0;
       z-index: 200;
@@ -196,7 +196,8 @@
       display: flex;
       align-items: center;
       gap: 10px;
-      text-decoration: none
+      text-decoration: none;
+      min-width: 0;
     }
 
     .logo-icon {
@@ -228,7 +229,7 @@
     }
 
     .hdr-spacer {
-      flex: 1
+      flex: 1 1 auto;
     }
 
     .hdr-file-info {
@@ -3194,6 +3195,59 @@
     .shake-it {
       animation: shakeX .3s
     }
+
+    /* ===== Mobile Header Fix ===== */
+    @media (max-width: 768px) {
+
+      .app-header {
+        padding: 8px 12px;
+        height: auto;
+        min-height: 60px;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .logo-name {
+        font-size: .9rem;
+      }
+
+      .hdr-file-info {
+        max-width: 120px;
+        font-size: .65rem;
+        padding: 4px 8px;
+      }
+
+      .hdr-btn {
+        padding: 6px 10px;
+        min-height: 34px;
+      }
+
+      .btn-lbl {
+        display: none;
+      }
+    }
+
+    /* ===== Small Mobile Fix ===== */
+    @media (max-width: 400px) {
+
+      .logo-name {
+        display: none;
+      }
+
+      .hdr-file-info {
+        display: none;
+      }
+
+      .app-header {
+        justify-content: space-between;
+      }
+
+      .hdr-btn {
+        width: 34px;
+        height: 34px;
+        padding: 6px;
+      }
+    }
   </style>
 </head>
 
@@ -4103,7 +4157,8 @@
               <span class="compress-quality-label" id="pdfQualityVal">72%</span>
             </div>
             <div style="display:flex;justify-content:space-between;font-size:0.68rem;color:var(--text3);margin-top:4px">
-              <span>Smaller file</span><span>Better quality</span></div>
+              <span>Smaller file</span><span>Better quality</span>
+            </div>
           </div>
           <div class="p-section">
             <div class="p-label">Custom Output Size (optional)</div>
@@ -4202,7 +4257,8 @@
       </div>
       <div class="modal-body">
         <p style="font-size:0.8rem;color:var(--text2);margin-bottom:14px;line-height:1.6">Set crop margins in
-          <strong>points (pt)</strong>. 72pt = 1 inch. You can crop one page or apply to all.</p>
+          <strong>points (pt)</strong>. 72pt = 1 inch. You can crop one page or apply to all.
+        </p>
         <div class="p-label">Crop Margins (pt)</div>
         <div class="crop-grid" style="margin-bottom:12px">
           <div class="crop-field"><label>Top</label><input type="number" class="inp" id="pcropTop" value="0" min="0">
