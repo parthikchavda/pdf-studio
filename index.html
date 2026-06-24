@@ -749,13 +749,20 @@
     .pages-wrap {
       flex: 1;
       overflow-y: auto;
-      padding: 16px
+      padding: 0;
+    }
+    @media (max-width:600px) {
+      .pages-wrap { padding-bottom: calc(var(--tab-h) + 60px); }
+      #pagesViewBar { flex-wrap: wrap; gap: 5px; padding: 6px 10px 5px; }
+      #pagesViewBar select { font-size: 0.68rem; padding: 4px 6px; }
+      #cardZoomSlider { width: 55px; }
     }
 
     .pages-grid-inner {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-      gap: 14px
+      grid-template-columns: repeat(auto-fill, minmax(var(--card-w, 140px), 1fr));
+      gap: 12px;
+      padding: 12px;
     }
 
     .page-card {
@@ -765,8 +772,10 @@
       overflow: hidden;
       transition: all .2s var(--ease);
       animation: cardIn .3s var(--ease) both;
-      cursor: default;
+      cursor: pointer;
       position: relative;
+      user-select: none;
+      -webkit-user-select: none;
     }
 
     @keyframes cardIn {
@@ -2211,7 +2220,7 @@
       }
 
       .pages-grid-inner {
-        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr))
+        grid-template-columns: repeat(auto-fill, minmax(var(--card-w, 160px), 1fr))
       }
     }
 
@@ -3175,6 +3184,58 @@
       color: var(--accent)
     }
 
+    /* ── PAGE CARD LIST VIEW ── */
+    .pages-grid-inner.list-view {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 6px !important;
+      padding: 12px 16px !important;
+    }
+    .pages-grid-inner.list-view .page-card {
+      display: flex !important;
+      flex-direction: row !important;
+      align-items: center !important;
+      width: 100% !important;
+      min-width: 0 !important;
+      padding: 8px 12px !important;
+      gap: 12px !important;
+    }
+    .pages-grid-inner.list-view .pg-canvas-wrap {
+      width: 56px !important;
+      height: 72px !important;
+      flex-shrink: 0 !important;
+      overflow: hidden !important;
+      border-radius: 5px !important;
+    }
+    .pages-grid-inner.list-view .pg-canvas-wrap canvas,
+    .pages-grid-inner.list-view .pg-canvas-wrap img {
+      width: 56px !important;
+      height: 72px !important;
+      object-fit: contain !important;
+    }
+    .pages-grid-inner.list-view .pg-header {
+      flex: 1 !important;
+      min-width: 0 !important;
+    }
+    .pages-grid-inner.list-view .pg-actions {
+      display: flex !important;
+      flex-direction: row !important;
+      gap: 5px !important;
+      flex-shrink: 0 !important;
+      margin-top: 0 !important;
+    }
+
+    /* ── DRAG & DROP ── */
+    .page-card.drag-over { border: 2px solid var(--accent) !important; background: var(--accent-light) !important; }
+    .page-card.dragging { opacity: 0.4 !important; transform: scale(.97) !important; }
+    .page-card[draggable=true] { cursor: grab !important; }
+    .page-card[draggable=true]:active { cursor: grabbing !important; }
+
+    /* ── CARD ZOOM via CSS var (controlled by JS applyCardZoom) ── */
+    @media (max-width: 600px) {
+      :root { --card-w: 100px; }
+    }
+
     /* ── TOAST shake (coming soon) ── */
     @keyframes shakeX {
 
@@ -3947,6 +4008,34 @@
 
       <!-- Pages grid -->
       <div id="pagesWrap" class="pages-wrap" style="display:none">
+        <!-- View controls bar -->
+        <div id="pagesViewBar" style="display:flex;align-items:center;gap:6px;padding:8px 16px 6px;background:#fff;border-bottom:1px solid var(--border);flex-wrap:wrap;position:sticky;top:0;z-index:50">
+          <div style="display:flex;gap:3px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:2px">
+            <button id="viewGridBtn" title="Grid view" onclick="setPageView('grid')" style="width:28px;height:28px;border:none;background:var(--accent);color:#fff;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            </button>
+            <button id="viewListBtn" title="List view" onclick="setPageView('list')" style="width:28px;height:28px;border:none;background:transparent;color:var(--text2);border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            </button>
+          </div>
+          <select id="pageSortSelect" onchange="applyPageSort(this.value)" style="padding:5px 8px;border:1px solid var(--border);border-radius:8px;font-size:0.73rem;font-weight:600;color:var(--text2);background:#fff;cursor:pointer;font-family:Inter;outline:none;min-height:32px">
+            <option value="default">Default order</option>
+            <option value="asc">Page 1 → Last</option>
+            <option value="desc">Last → Page 1</option>
+            <option value="even">Even pages only</option>
+            <option value="odd">Odd pages only</option>
+            <option value="reverse">Reversed</option>
+          </select>
+          <div style="display:flex;align-items:center;gap:5px;margin-left:auto">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12" style="color:var(--text3)"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="range" id="cardZoomSlider" min="80" max="220" value="140" step="10" style="width:70px;accent-color:var(--accent)" title="Thumbnail size" oninput="applyCardZoom(this.value)">
+          </div>
+          <div style="display:flex;gap:4px">
+            <button onclick="selAllPages()" style="padding:4px 9px;border:1px solid var(--border);border-radius:7px;background:#fff;font-size:0.7rem;font-weight:700;color:var(--text2);cursor:pointer;font-family:Inter">All</button>
+            <button onclick="selNonePages()" style="padding:4px 9px;border:1px solid var(--border);border-radius:7px;background:#fff;font-size:0.7rem;font-weight:700;color:var(--text2);cursor:pointer;font-family:Inter">None</button>
+            <button onclick="selInvertPages()" style="padding:4px 9px;border:1px solid var(--border);border-radius:7px;background:#fff;font-size:0.7rem;font-weight:700;color:var(--text2);cursor:pointer;font-family:Inter">Invert</button>
+          </div>
+        </div>
         <div id="pagesGrid" class="pages-grid-inner"></div>
       </div>
 
@@ -4522,14 +4611,14 @@
       </div>
       <div class="modal-body">
         <div class="merge-zone" id="imgZone" style="border-color:rgba(124,58,237,0.3)"><input type="file"
-            accept="image/*" id="imgInput" multiple><svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+            accept="image/*,.heic,.heif,.avif,.tiff,.tif,.bmp,.svg,.webp" id="imgInput" multiple><svg width="24" height="24" viewBox="0 0 24 24" fill="none"
             stroke="var(--purple)" stroke-width="2" style="margin:0 auto 8px;display:block">
             <rect x="3" y="3" width="18" height="18" rx="2" />
             <circle cx="8.5" cy="8.5" r="1.5" />
             <polyline points="21 15 16 10 5 21" />
           </svg>
           <p style="font-size:0.8rem;color:var(--text2)"><strong style="color:var(--purple)">Click or drag</strong>
-            JPG/PNG images</p>
+            any image — JPG, PNG, WebP, BMP, GIF, AVIF…</p>
         </div>
         <div class="img-grid" id="imgGrid"></div>
         <div style="font-size:0.74rem;color:var(--text2);margin:8px 0">Images: <strong id="imgCount"
@@ -5381,17 +5470,148 @@
       finally { if (zone) zone.classList.remove('uploading'); }
     }
 
+    // ─── VIEW MODE / SORT / ZOOM ───
+    let pageViewMode = 'grid'; // 'grid' | 'list'
+    let pageSortMode = 'default';
+    let cardZoomVal = window.innerWidth <= 600 ? 100 : 140;
+
+    function setPageView(mode) {
+      pageViewMode = mode;
+      const grid = document.getElementById('pagesGrid');
+      const gBtn = document.getElementById('viewGridBtn');
+      const lBtn = document.getElementById('viewListBtn');
+      if (mode === 'list') {
+        grid.classList.add('list-view');
+        if (gBtn) { gBtn.style.background = 'transparent'; gBtn.style.color = 'var(--text2)'; }
+        if (lBtn) { lBtn.style.background = 'var(--accent)'; lBtn.style.color = '#fff'; }
+      } else {
+        grid.classList.remove('list-view');
+        if (gBtn) { gBtn.style.background = 'var(--accent)'; gBtn.style.color = '#fff'; }
+        if (lBtn) { lBtn.style.background = 'transparent'; lBtn.style.color = 'var(--text2)'; }
+      }
+    }
+    function applyCardZoom(val) {
+      cardZoomVal = parseInt(val);
+      document.documentElement.style.setProperty('--card-w', cardZoomVal + 'px');
+    }
+    // init zoom slider to match mobile/desktop
+    document.addEventListener('DOMContentLoaded', () => {
+      const sl = document.getElementById('cardZoomSlider');
+      if (sl) { sl.value = cardZoomVal; applyCardZoom(cardZoomVal); }
+    });
+    function applyPageSort(mode) {
+      if (!pdfDoc) return;
+      pageSortMode = mode;
+      let sorted = Array.from({length: totalPages}, (_, i) => i + 1);
+      if (mode === 'desc' || mode === 'reverse') sorted = sorted.reverse();
+      else if (mode === 'even') sorted = sorted.filter(p => p % 2 === 0);
+      else if (mode === 'odd') sorted = sorted.filter(p => p % 2 !== 0);
+      // 'asc' and 'default' are natural order
+      pageOrder = sorted;
+      document.getElementById('orderInput').value = pageOrder.join(',');
+      renderAllPages();
+    }
+    function selAllPages() { pageOrder.forEach(p => selectedPages.add(p)); renderAllPages(); updateInfo(); }
+    function selNonePages() { selectedPages.clear(); renderAllPages(); updateInfo(); }
+    function selInvertPages() { pageOrder.forEach(p => { if (selectedPages.has(p)) selectedPages.delete(p); else selectedPages.add(p); }); renderAllPages(); updateInfo(); }
+
+    // ─── DRAG AND DROP REORDER ───
+    let dragSrcPg = null;
+    function setupCardDragDrop(card, pgNum) {
+      card.setAttribute('draggable', 'true');
+      card.addEventListener('dragstart', e => {
+        dragSrcPg = pgNum;
+        card.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', pgNum);
+      });
+      card.addEventListener('dragend', () => { card.classList.remove('dragging'); document.querySelectorAll('.page-card.drag-over').forEach(c => c.classList.remove('drag-over')); });
+      card.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (dragSrcPg !== pgNum) card.classList.add('drag-over'); });
+      card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
+      card.addEventListener('drop', e => {
+        e.preventDefault(); e.stopPropagation(); card.classList.remove('drag-over');
+        if (dragSrcPg === null || dragSrcPg === pgNum) return;
+        const fromIdx = pageOrder.indexOf(dragSrcPg), toIdx = pageOrder.indexOf(pgNum);
+        if (fromIdx < 0 || toIdx < 0) return;
+        pageOrder.splice(fromIdx, 1); pageOrder.splice(toIdx, 0, dragSrcPg);
+        document.getElementById('orderInput').value = pageOrder.join(',');
+        dragSrcPg = null;
+        renderAllPages(); showToast('Page order updated', 'success');
+      });
+    }
+
+    // Touch drag-and-drop for mobile
+    let touchDragCard = null, touchDragPg = null, touchDragClone = null;
+    function setupCardTouchDrag(card, pgNum) {
+      let holdTimer = null, isDragging = false;
+      let startX = 0, startY = 0;
+      card.addEventListener('touchstart', e => {
+        startX = e.touches[0].clientX; startY = e.touches[0].clientY;
+        holdTimer = setTimeout(() => {
+          isDragging = true; touchDragCard = card; touchDragPg = pgNum;
+          card.classList.add('dragging');
+          touchDragClone = card.cloneNode(true);
+          touchDragClone.style.cssText = 'position:fixed;z-index:9999;opacity:.85;pointer-events:none;width:' + card.offsetWidth + 'px;left:' + card.getBoundingClientRect().left + 'px;top:' + card.getBoundingClientRect().top + 'px;transform:scale(1.05);box-shadow:0 8px 24px rgba(0,0,0,.2);border-radius:12px;';
+          document.body.appendChild(touchDragClone);
+          if (navigator.vibrate) navigator.vibrate(40);
+        }, 380);
+      }, { passive: true });
+      card.addEventListener('touchmove', e => {
+        const dx = Math.abs(e.touches[0].clientX - startX), dy = Math.abs(e.touches[0].clientY - startY);
+        if (dx > 10 || dy > 10) clearTimeout(holdTimer);
+        if (!isDragging || !touchDragClone) return;
+        e.preventDefault();
+        const t = e.touches[0];
+        touchDragClone.style.left = (t.clientX - touchDragClone.offsetWidth/2) + 'px';
+        touchDragClone.style.top = (t.clientY - touchDragClone.offsetHeight/2) + 'px';
+        document.querySelectorAll('.page-card.drag-over').forEach(c => c.classList.remove('drag-over'));
+        const el = document.elementFromPoint(t.clientX, t.clientY);
+        const target = el && el.closest && el.closest('.page-card');
+        if (target && target !== touchDragCard) target.classList.add('drag-over');
+      }, { passive: false });
+      card.addEventListener('touchend', e => {
+        clearTimeout(holdTimer);
+        if (!isDragging) return;
+        isDragging = false;
+        if (touchDragClone) { touchDragClone.remove(); touchDragClone = null; }
+        document.querySelectorAll('.page-card.dragging').forEach(c => c.classList.remove('dragging'));
+        const t = e.changedTouches[0];
+        const el = document.elementFromPoint(t.clientX, t.clientY);
+        const target = el && el.closest && el.closest('.page-card');
+        document.querySelectorAll('.page-card.drag-over').forEach(c => c.classList.remove('drag-over'));
+        if (target && target !== touchDragCard && target.dataset.pg) {
+          const toPg = parseInt(target.dataset.pg);
+          const fromIdx = pageOrder.indexOf(touchDragPg), toIdx = pageOrder.indexOf(toPg);
+          if (fromIdx >= 0 && toIdx >= 0) {
+            pageOrder.splice(fromIdx, 1); pageOrder.splice(toIdx, 0, touchDragPg);
+            document.getElementById('orderInput').value = pageOrder.join(',');
+            renderAllPages(); showToast('Page order updated', 'success');
+          }
+        }
+        touchDragCard = null; touchDragPg = null;
+      });
+    }
+
     // ─── RENDER ───
     async function renderAllPages() {
       setStatus('Rendering…', true);
       const grid = document.getElementById('pagesGrid');
       grid.innerHTML = '';
+      // Restore view mode class
+      if (pageViewMode === 'list') grid.classList.add('list-view');
+      else grid.classList.remove('list-view');
+      // Show drag hint
+      const dh = document.getElementById('dragHintLabel');
+      if (dh) dh.style.display = pageOrder.length > 1 ? 'inline' : 'none';
       const total = pageOrder.length;
-      for (let i = 0; i < total; i++) {
-        const pg = pageOrder[i];
-        setProgress(30 + Math.round((i / total) * 60));
-        const card = await buildPageCard(pg, i + 1, total);
-        grid.appendChild(card);
+      // Render pages in batches for performance
+      const BATCH = 4;
+      for (let i = 0; i < total; i += BATCH) {
+        const batch = pageOrder.slice(i, i + BATCH);
+        setProgress(20 + Math.round((i / total) * 70));
+        const cards = await Promise.all(batch.map((pg, bi) => buildPageCard(pg, i + bi + 1, total)));
+        cards.forEach(c => grid.appendChild(c));
+        if (i + BATCH < total) await new Promise(r => setTimeout(r, 0)); // yield to UI
       }
       setProgress(100);
       setStatus(total + ' page' + (total === 1 ? '' : 's'), false);
@@ -5436,6 +5656,24 @@
       cw.appendChild(canvas); cw.appendChild(redactCanvas);
       wrap.appendChild(cw);
       setupRedactCanvas(redactCanvas, canvas, pgNum);
+
+      // Single click = select/deselect; Double click = preview
+      let clickTimer = null;
+      card.addEventListener('click', e => {
+        if (e.target.closest('button') || e.target.closest('.pg-del-overlay')) return;
+        if (isRedacting) return;
+        clearTimeout(clickTimer);
+        clickTimer = setTimeout(() => { toggleSelect(pgNum); }, 220);
+      });
+      card.addEventListener('dblclick', e => {
+        if (e.target.closest('button') || e.target.closest('.pg-del-overlay')) return;
+        clearTimeout(clickTimer);
+        previewPage(pgNum);
+      });
+
+      // Drag & drop (desktop and mobile)
+      setupCardDragDrop(card, pgNum);
+      setupCardTouchDrag(card, pgNum);
       return card;
     }
 
@@ -5843,8 +6081,8 @@
     document.getElementById('dlSelToolbarBtn').addEventListener('click', () => document.getElementById('downloadSelBtn').click());
 
     // ─── SEL TOOLBAR ───
-    document.getElementById('selAllBtn').addEventListener('click', () => { pageOrder.forEach(p => selectedPages.add(p)); renderAllPages(); updateInfo(); });
-    document.getElementById('selNoneBtn').addEventListener('click', () => { selectedPages.clear(); renderAllPages(); updateInfo(); });
+    document.getElementById('selAllBtn').addEventListener('click', selAllPages);
+    document.getElementById('selNoneBtn').addEventListener('click', selNonePages);
     document.getElementById('delSelBtn').addEventListener('click', () => { selectedPages.forEach(p => deletedPages.add(p)); selectedPages.clear(); renderAllPages(); updateInfo(); showToast('Pages deleted', 'info'); });
 
     // ─── PREVIEW ───
@@ -5924,13 +6162,58 @@
     function addImgFiles(files) { imgFiles = [...imgFiles, ...files]; renderImgGrid(); }
     function renderImgGrid() { const grid = document.getElementById('imgGrid'); grid.innerHTML = ''; imgFiles.forEach((f, i) => { const url = URL.createObjectURL(f); const d = document.createElement('div'); d.className = 'img-thumb'; d.innerHTML = `<img src="${url}" alt="${f.name}" loading="lazy"><button class="del-img" onclick="imgFiles.splice(${i},1);renderImgGrid()" aria-label="Remove">✕</button>`; grid.appendChild(d); }); document.getElementById('imgCount').textContent = imgFiles.length; }
     document.querySelectorAll('#pageSizeRow .btn').forEach(btn => { btn.addEventListener('click', () => { document.querySelectorAll('#pageSizeRow .btn').forEach(b => b.classList.remove('active-size')); btn.classList.add('active-size'); imgPageSize = btn.dataset.size; }); });
+    // Universal image-to-canvas helper: handles JPEG, PNG, WebP, BMP, GIF, TIFF, AVIF, SVG, HEIC etc.
+    async function imageFileToCanvas(file) {
+      return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth || img.width;
+          canvas.height = img.naturalHeight || img.height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          URL.revokeObjectURL(url);
+          resolve(canvas);
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Cannot load image: ' + file.name)); };
+        img.src = url;
+      });
+    }
     document.getElementById('img2pdfDoBtn').addEventListener('click', async () => {
-      if (!imgFiles.length) { showToast('Add images first', 'error'); return; } const st = document.getElementById('img2pdfStatus'); st.innerHTML = '<div class="spinner"></div><span>Creating PDF…</span>';
+      if (!imgFiles.length) { showToast('Add images first', 'error'); return; }
+      const st = document.getElementById('img2pdfStatus');
+      const btn = document.getElementById('img2pdfDoBtn');
+      const restore = setBtnBusy(btn, 'Creating…');
+      st.innerHTML = '<div class="spinner"></div><span>Creating PDF…</span>';
       try {
-        const newDoc = await PDFLib.PDFDocument.create(); for (const f of imgFiles) { const buf = await f.arrayBuffer(); let img; if (f.type === 'image/png') img = await newDoc.embedPng(buf); else img = await newDoc.embedJpg(buf); const A4 = [595, 842], Letter = [612, 792]; let pgW, pgH; if (imgPageSize === 'A4') { pgW = A4[0]; pgH = A4[1]; } else if (imgPageSize === 'Letter') { pgW = Letter[0]; pgH = Letter[1]; } else { pgW = img.width; pgH = img.height; } const pg = newDoc.addPage([pgW, pgH]); const sc = Math.min(pgW / img.width, pgH / img.height); const w = img.width * sc, h = img.height * sc; pg.drawImage(img, { x: (pgW - w) / 2, y: (pgH - h) / 2, width: w, height: h }); }
-        const outName = imgFiles.length === 1 ? imgFiles[0].name.replace(/\.[^.]+$/, '') + '.pdf' : 'images.pdf'; triggerDownload(await newDoc.save(), 'application/pdf', outName); showToast(`PDF from ${imgFiles.length} images created`, 'success'); st.innerHTML = '<span>Done ✓</span>'; setTimeout(() => closeModal('img2pdfModal'), 1200);
-      }
-      catch (e) { showToast('Failed: ' + e.message, 'error'); st.innerHTML = '<span>Failed</span>'; }
+        const newDoc = await PDFLib.PDFDocument.create();
+        const A4 = [595, 842], Letter = [612, 792];
+        for (let fi = 0; fi < imgFiles.length; fi++) {
+          const f = imgFiles[fi];
+          st.innerHTML = `<div class="spinner"></div><span>Processing image ${fi + 1}/${imgFiles.length}…</span>`;
+          // Convert every image type to PNG via canvas to avoid JPEG SOI / format issues
+          const canvas = await imageFileToCanvas(f);
+          const pngDataUrl = canvas.toDataURL('image/png');
+          const pngBase64 = pngDataUrl.split(',')[1];
+          const pngBytes = Uint8Array.from(atob(pngBase64), c => c.charCodeAt(0));
+          const img = await newDoc.embedPng(pngBytes);
+          let pgW, pgH;
+          if (imgPageSize === 'A4') { pgW = A4[0]; pgH = A4[1]; }
+          else if (imgPageSize === 'Letter') { pgW = Letter[0]; pgH = Letter[1]; }
+          else { pgW = img.width; pgH = img.height; }
+          const pg = newDoc.addPage([pgW, pgH]);
+          const sc = Math.min(pgW / img.width, pgH / img.height);
+          const w = img.width * sc, h = img.height * sc;
+          pg.drawImage(img, { x: (pgW - w) / 2, y: (pgH - h) / 2, width: w, height: h });
+        }
+        const outName = imgFiles.length === 1 ? imgFiles[0].name.replace(/\.[^.]+$/, '') + '.pdf' : 'images.pdf';
+        triggerDownload(await newDoc.save(), 'application/pdf', outName);
+        showToast(`PDF from ${imgFiles.length} image${imgFiles.length > 1 ? 's' : ''} created!`, 'success');
+        st.innerHTML = '<span>Done ✓</span>';
+        setTimeout(() => closeModal('img2pdfModal'), 1200);
+      } catch (e) { showToast('Failed: ' + e.message, 'error'); st.innerHTML = '<span>Failed: ' + e.message + '</span>'; }
+      finally { restore(); }
     });
 
     // ─── HELPERS ───
