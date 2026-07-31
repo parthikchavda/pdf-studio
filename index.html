@@ -7256,10 +7256,10 @@
   </div>
 
   <!-- ═══════════════ JAVASCRIPT ═══════════════ -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
   <script>
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
     // ─── STATE ───
     let pdfDoc = null, originalFile = null, totalPages = 0;
@@ -7665,7 +7665,18 @@
       if (zone) zone.classList.add('uploading');
       try {
         const buf = await file.arrayBuffer();
-        pdfDoc = await pdfjsLib.getDocument({ data: buf }).promise;
+        pageRenderCache.clear();
+        try{
+          pdfDoc = await pdfjsLib.getDocument({ data: buf }).promise;
+        }catch(loadErr){
+          // Some PDFs (e.g. Chrome/Claude "print to PDF" exports) contain pattern
+          // objects that trip the fast-path parser. Retry with safer, non-streaming options.
+          if(/not been resolved|resolved yet|pattern_p/i.test(loadErr.message||'')){
+            pdfDoc = await pdfjsLib.getDocument({ data: buf, disableAutoFetch:true, disableStream:true, stopAtErrors:false }).promise;
+          }else{
+            throw loadErr;
+          }
+        }
         totalPages = pdfDoc.numPages;
         pageOrder = Array.from({ length: totalPages }, (_, i) => i + 1);
         selectedPages.clear(); deletedPages.clear(); redactions = {}; pageRotations = {};
@@ -7930,6 +7941,7 @@
         const mergedBytes = await mergedDoc.save();
         const mergedFile = new File([mergedBytes], originalFile.name, { type: 'application/pdf' });
         showToast(addedCount + ' page(s) added from ' + files.length + ' file(s)', 'success');
+        pageRenderCache.clear();
         await loadFile(mergedFile);
       } catch (e) {
         showToast('Merge failed: ' + e.message, 'error');
@@ -7937,18 +7949,40 @@
       }
     }
 
+    // ─── PAGE RENDER CACHE ───
+    // Caches the raw rasterized page (pre-redaction) keyed by "pageNum_rotation".
+    // Any action that doesn't change the page's pixels (select, delete-toggle,
+    // reordering) can then reuse the cached canvas instead of re-decoding the PDF.
+    const pageRenderCache = new Map();
+    function cloneCanvas(src) {
+      const c = document.createElement('canvas');
+      c.width = src.width; c.height = src.height;
+      c.getContext('2d').drawImage(src, 0, 0);
+      return c;
+    }
+
     async function buildPageCard(pgNum, displayIdx, total) {
       const card = document.createElement('div');
       card.className = 'page-card' + (selectedPages.has(pgNum) ? ' selected' : '') + (deletedPages.has(pgNum) ? ' deleted' : '');
       card.dataset.pg = pgNum;
       card.style.animationDelay = (displayIdx * 0.03) + 's';
-      const page = await pdfDoc.getPage(pgNum);
       const rot = (pageRotations[pgNum] || 0);
-      const vp = page.getViewport({ scale: 2.2, rotation: rot });
-      const canvas = document.createElement('canvas');
-      canvas.width = vp.width; canvas.height = vp.height;
+      const cacheKey = pgNum + '_' + rot;
+      let canvas;
+      if (pageRenderCache.has(cacheKey)) {
+        // Instant: reuse the already-rasterized page, skip the PDF decode entirely.
+        canvas = cloneCanvas(pageRenderCache.get(cacheKey));
+      } else {
+        const page = await pdfDoc.getPage(pgNum);
+        const vp0 = page.getViewport({ scale: 2.2, rotation: rot });
+        canvas = document.createElement('canvas');
+        canvas.width = vp0.width; canvas.height = vp0.height;
+        const ctx0 = canvas.getContext('2d');
+        await page.render({ canvasContext: ctx0, viewport: vp0 }).promise;
+        pageRenderCache.set(cacheKey, cloneCanvas(canvas));
+      }
+      const vp = { width: canvas.width, height: canvas.height };
       const ctx = canvas.getContext('2d');
-      await page.render({ canvasContext: ctx, viewport: vp }).promise;
       if (redactions[pgNum]) redactions[pgNum].forEach(r => { ctx.fillStyle = r.color; ctx.fillRect(r.x * vp.width, r.y * vp.height, r.w * vp.width, r.h * vp.height); });
       const isSel = selectedPages.has(pgNum), isDel = deletedPages.has(pgNum);
       card.innerHTML = `
